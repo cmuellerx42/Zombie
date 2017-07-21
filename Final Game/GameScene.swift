@@ -17,6 +17,14 @@ struct BodyType {
     static let Hero: UInt32 = 4
 }
 
+struct ItemType {
+    
+    static let None: UInt32 = 0
+    static let Comestible: UInt32 = 1
+    static let Weapon: UInt32 = 2
+    static let Clothing: UInt32 = 4
+}
+
 struct GameState {
     static let PreGame: UInt32 = 0
     static let Playing: UInt32 = 1
@@ -28,7 +36,8 @@ class Enemy: SKSpriteNode {
     var hp : Int
     var max : Int
     var spd : Double
-    let hpBar = SKSpriteNode();
+    var hitBox : Int
+    let hpBar = SKSpriteNode()
     
     init(imageNamed: String) {
         
@@ -36,6 +45,61 @@ class Enemy: SKSpriteNode {
         hp = 10
         max = 10
         spd = 0.5
+        hitBox = 32
+        super.init(texture: texture, color: UIColor(), size: texture.size())
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+class Player: SKSpriteNode {
+    var hp : Int
+    var max : Int
+    var spd : Double
+    var hitBox : Int
+    let hpBar = SKSpriteNode()
+    init(imageNamed: String) {
+        let texture = SKTexture(imageNamed: "\(imageNamed)")
+        hp = 10
+        max = 10
+        spd = 0.5
+        hitBox = 32
+        super.init(texture: texture, color: UIColor(), size: texture.size())
+    }
+    required init?(coder aDecoder: NSCoder) {
+        
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+class Item: SKSpriteNode {
+    var title : String
+    var text: String
+    var type: UInt32
+    
+    init(imageNamed: String){
+        let texture = SKTexture(imageNamed: "\(imageNamed)")
+        title = ""
+        text = ""
+        type = 0
+        super.init(texture: texture, color: UIColor(), size: texture.size())
+    }
+    required init?(coder aDecoder: NSCoder) {
+        
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+class Bullet: SKSpriteNode {
+    
+    var targetObject : Enemy
+    
+    init(imageNamed: String){
+        let texture = SKTexture(imageNamed: "\(imageNamed)")
+        targetObject = Enemy(imageNamed: "")
         super.init(texture: texture, color: UIColor(), size: texture.size())
     }
     
@@ -47,25 +111,28 @@ class Enemy: SKSpriteNode {
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    var character = SKSpriteNode(imageNamed: "character");
-    var characterSpeed : Double = 200;
     let moveCircle = SKSpriteNode(imageNamed: "moveCircle");
     var touchLocation = CGPoint(x: 0, y: 0)
     
-    var hp = 10
-    
+    let player = Player(imageNamed: "character")
     var enemies = [Enemy]()
+    var bullets = [Bullet]()
+    
+    var cam : SKCameraNode?
     
     override func didMove(to view: SKView) {
         
-        character.physicsBody = SKPhysicsBody(rectangleOf: character.size)
-        character.physicsBody?.isDynamic = true
-        character.physicsBody?.categoryBitMask = BodyType.Hero
-        character.physicsBody?.contactTestBitMask = BodyType.Zombie
-        character.physicsBody?.collisionBitMask = 0
+        player.hp = 10
+        player.max = 10
+        player.spd = 200
+        player.hitBox = 32
         
         backgroundColor = UIColor.white
-        addChild(character)
+        addChild(player)
+        
+        cam = SKCameraNode()
+        self.camera = cam
+        self.addChild(cam!)
         
         addZombie(100,0)
         addZombie(0,100)
@@ -103,15 +170,30 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         touchLocation = touch.location(in: self)
         
         var move = true
+        var vectors : [Double] = []
         
         for i in enemies{
-            if touchActor(touchLocation, i){
-                shootBullet()
+            if touchObject(touchLocation, i, i.hitBox){
+                let vector = CGVector(dx: -(i.position.x - touchLocation.x), dy: -(i.position.y - touchLocation.y))
+                let vectorLength : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
+                vectors.append(Double(vectorLength))
                 move = false
+            }else{
+                move = true
             }
         }
+        if move == false {
+        let minimum = vectors.min()
+        if let position = vectors.index(of: minimum!) {
+            for i in enemies {
+                if position == enemies.index(of:i) {
+                    shootBullet(thing: i)
+                }
+            }
+        }
+        }
         
-        if touchActor(touchLocation, character){
+        if touchObject(touchLocation, player, player.hitBox){
             print("ouch!")
             move = false
         }
@@ -121,10 +203,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             moveCircle.removeFromParent()
             moveCircle.position = CGPoint(x:touchLocation.x, y:touchLocation.y)
             addChild(moveCircle)
-            let vector = CGVector(dx: -(character.position.x - touchLocation.x), dy: -(character.position.y - touchLocation.y))
+            let vector = CGVector(dx: -(player.position.x - touchLocation.x), dy: -(player.position.y - touchLocation.y))
             let vectorLength : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
-            let moveAction = SKAction.repeat(SKAction.move(by: vector, duration: vectorLength/characterSpeed), count: 1)
-            character.run(moveAction, withKey : "moveAction")
+            let moveAction = SKAction.repeat(SKAction.move(by: vector, duration: vectorLength/player.spd), count: 1)
+            player.run(moveAction, withKey : "moveAction")
         }
     }
     
@@ -134,14 +216,42 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     
     override func update(_ currentTime: TimeInterval) {
-        for i in enemies{
-            if touchActor(i.position,character) == false {
-                let vector = CGVector(dx: -(i.position.x - character.position.x), dy: -(i.position.y - character.position.y))
-                let vectorLength : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
-                i.position.x += vector.dx/CGFloat(vectorLength/i.spd)
-                i.position.y += vector.dy/CGFloat(vectorLength/i.spd)
+        
+        if let camera = cam, let pl = player as SKSpriteNode? {
+            camera.position = pl.position
+        }
+        
+        for i in bullets{
+            if touchObject(i.position, i.targetObject as SKSpriteNode, i.targetObject.hitBox) {
+                if let bulletIndex = bullets.index(of: i) {
+                        bullets.remove(at: bulletIndex)
+                }
+                i.removeFromParent()
+                bulletHitZombie(bullet: i, zombie: i.targetObject)
             }
-            
+        }
+        
+        
+        
+        for i in enemies{
+
+            if touchObject(i.position,player,player.hitBox) == false {
+                let vector = CGVector(dx: -(i.position.x - player.position.x), dy: -(i.position.y - player.position.y))
+                let vectorLength : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
+                for j in enemies {
+                    if j != i {
+                        if touchObject(i.position, j, j.hitBox) == false {
+                            i.position.x += vector.dx/CGFloat(vectorLength/i.spd)
+                            i.position.y += vector.dy/CGFloat(vectorLength/i.spd)
+                        }else{
+                            let vector2 = CGVector(dx: -(i.position.x - j.position.x), dy: -(i.position.y - j.position.y))
+                            let vector2Length : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
+                            i.position.x -= vector2.dx/CGFloat(vector2Length/(i.spd))
+                            i.position.y -= vector2.dy/CGFloat(vector2Length/(i.spd))
+                        }
+                    }
+                }
+            }
             
             i.hpBar.position = CGPoint(x: i.position.x, y: i.position.y + 32);
             let percentage = Double(i.hp) / Double(i.max) * 100
@@ -165,29 +275,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     
                     enemies.remove(at: zombieIndex)
                 }
+                explode(object: i as SKSpriteNode, explosionSize: 10, explosionRadius: i.hitBox, color: UIColor.red)
                 i.removeFromParent()
                 i.hpBar.removeFromParent()
             }
         }
     }
     
-    func shootBullet(){
+    func shootBullet(thing:Enemy){
         //shoot a bullet
-        let bullet = SKSpriteNode();
+        let bullet = Bullet(imageNamed: "")
         bullet.color = UIColor.gray;
         bullet.size = CGSize(width:5,height:5);
-        bullet.position = CGPoint(x: character.position.x, y: character.position.y);
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y);
         
-        bullet.physicsBody = SKPhysicsBody(circleOfRadius: bullet.size.width/2)
-        bullet.physicsBody?.isDynamic = true
-        bullet.physicsBody?.categoryBitMask = BodyType.Bullet
-        bullet.physicsBody?.contactTestBitMask = BodyType.Zombie
-        bullet.physicsBody?.collisionBitMask = 0
-        bullet.physicsBody?.usesPreciseCollisionDetection = true
+        bullet.targetObject = thing
         
+        bullets.append(bullet)
         addChild(bullet)
         
-        let vector = CGVector(dx: -(character.position.x - touchLocation.x), dy: -(character.position.y - touchLocation.y))
+        let vector = CGVector(dx: -(player.position.x - thing.position.x), dy: -(player.position.y - thing.position.y))
+        
         let vectorLength : Double = sqrt((Double(vector.dx)*Double(vector.dx)) + (Double(vector.dy)*Double(vector.dy)))
 
         let projectileAction = SKAction.sequence([
@@ -201,162 +309,74 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     func bulletHitZombie(bullet:SKSpriteNode, zombie: Enemy) {
         
-        bullet.removeFromParent()
+        explode(object: zombie as SKSpriteNode, explosionSize: 3, explosionRadius: zombie.hitBox, color: UIColor.red)
         zombie.hp -= 1
         print(zombie.hp)
     }
     
-    func heroHitZombie(player:SKSpriteNode, zombie: Enemy) {
+    func heroHitZombie(player:Player, zombie: Enemy) {
         
-        hp -= 1
-        print(hp)
+        player.hp -= 1
+        print(player.hp)
     }
     
     func addZombie(_ x:Double,_ y:Double){
         let zombie : Enemy
         zombie = Enemy(imageNamed: "zombie")
-        
-        zombie.physicsBody = SKPhysicsBody(rectangleOf: zombie.size)
-        zombie.physicsBody?.isDynamic = true
-        zombie.physicsBody?.categoryBitMask = BodyType.Zombie
-        zombie.physicsBody?.contactTestBitMask = BodyType.Bullet
-        zombie.physicsBody?.collisionBitMask = 0
+        zombie.color = UIColor.blue
         
         zombie.position.x = CGFloat(x)
         zombie.position.y = CGFloat(y)
         
-        zombie.hp = Int(arc4random_uniform(20) + 10)
+        zombie.hp = Int(arc4random_uniform(10) + 10)
         zombie.max = zombie.hp
-        zombie.spd = Double(Int(arc4random_uniform(51)) + 50)/100
+        zombie.spd = Double(Int(arc4random_uniform(21)) + 30)/100
+        zombie.hitBox = 32
         
         addChild(zombie)
         addChild(zombie.hpBar)
         enemies.append(zombie)
     }
     
-    func touchActor(_ touchPoint : CGPoint,_ actor : SKSpriteNode) -> Bool {
-        if (actor.position.x - 32) < touchPoint.x && touchPoint.x < (actor.position.x + 32) && (actor.position.y - 32) < touchPoint.y && touchPoint.y < (actor.position.y + 32) {
+    func touchObject(_ touchPoint : CGPoint,_ object : SKSpriteNode,_ hitBox : Int) -> Bool {
+        if (Int(object.position.x) - hitBox) < Int(touchPoint.x) && Int(touchPoint.x) < (Int(object.position.x) + hitBox) && (Int(object.position.y) - hitBox) < Int(touchPoint.y) && Int(touchPoint.y) < (Int(object.position.y) + hitBox) {
             return true
         }else{
             return false
         }
     }
     
-    func didBegin(_ contact: SKPhysicsContact) {
+    func random() -> CGFloat {
         
-        let bodyA = contact.bodyA
-        let bodyB = contact.bodyB
+        return CGFloat(Float(arc4random()) / Float(UINT32_MAX))
         
-        let contactA = bodyA.categoryBitMask
-        let contactB = bodyB.categoryBitMask
+    }
+    
+    func explode(object: SKSpriteNode, explosionSize: Int, explosionRadius: Int, color: UIColor){
+        var explosions: [SKSpriteNode] = []
         
-        switch contactA {
+        for _ in 1...explosionSize {
+            explosions.append(SKSpriteNode())
+        }
+        
+        for explosion in explosions {
             
-        case BodyType.Zombie:
+            explosion.color = color
+            explosion.size = CGSize(width: 3, height: 3);
+            explosion.position = CGPoint(x: object.position.x, y: object.position.y);
             
+            addChild(explosion);
             
-            switch contactB {
-                
-                
-            case BodyType.Zombie:
-                
-                break
-                
-                
-            case BodyType.Bullet:
-                
-                if let bodyBNode = contact.bodyB.node as? SKSpriteNode, let bodyANode = contact.bodyA.node as? Enemy {
-                    
-                    bulletHitZombie(bullet: bodyBNode, zombie: bodyANode)
-                    
-                }
-                
-                
-            case BodyType.Hero:
-                
-                if let bodyBNode = contact.bodyB.node as? SKSpriteNode, let bodyANode = contact.bodyA.node as? Enemy {
-                    
-                    heroHitZombie(player: bodyBNode, zombie: bodyANode)
-                    
-                }
-                
-                
-            default:
-                
-                break
-                
-            }
+            let randomExplosionX = object.position.x + CGFloat(arc4random_uniform(UInt32(explosionRadius))) - CGFloat(explosionRadius/2)
             
+            let randomExplosionY = object.position.y + CGFloat(arc4random_uniform(UInt32(explosionRadius))) - CGFloat(explosionRadius/2)
             
-        case BodyType.Bullet:
+            let moveExplosion: SKAction
             
+            let vector = CGVector(dx: -(object.position.x - CGFloat(randomExplosionX)), dy: -(y: object.position.y - CGFloat(randomExplosionY)))
             
-            switch contactB {
-                
-                
-            case BodyType.Zombie:
-                
-                if let bodyANode = contact.bodyA.node as? SKSpriteNode, let bodyBNode = contact.bodyB.node as? Enemy {
-                    
-                    bulletHitZombie(bullet: bodyANode, zombie: bodyBNode)
-                    
-                }
-                
-                
-            case BodyType.Bullet:
-                
-                break
-                
-                
-            case BodyType.Hero:
-                
-                break
-                
-                
-            default:
-                
-                break
-                
-            }
-            
-            
-        case BodyType.Hero:
-            
-            
-            switch contactB {
-                
-                
-            case BodyType.Zombie:
-                
-                if let bodyANode = contact.bodyA.node as? SKSpriteNode, let bodyBNode = contact.bodyB.node as? Enemy {
-                    
-                    heroHitZombie(player: bodyANode, zombie: bodyBNode)
-                    
-                }
-                
-                
-            case BodyType.Bullet:
-                
-                break
-                
-                
-                
-            case BodyType.Hero:
-                
-                break
-                
-                
-            default:
-                
-                break
-                
-            }
-            
-            
-        default:
-            
-            break
-            
+            moveExplosion = SKAction.move(by: vector, duration: 1)
+            explosion.run(SKAction.sequence([moveExplosion, SKAction.removeFromParent()]))
         }
     }
 }
