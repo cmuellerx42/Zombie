@@ -15,6 +15,7 @@
 		942E90311F20F22C00B8C6A9 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 942E902F1F20F22C00B8C6A9 /* Main.storyboard */; };
 		942E90331F20F22C00B8C6A9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 942E90321F20F22C00B8C6A9 /* Assets.xcassets */; };
 		942E90361F20F22C00B8C6A9 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 942E90341F20F22C00B8C6A9 /* LaunchScreen.storyboard */; };
+		942E90621F266F6C00B8C6A9 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942E90611F266F6C00B8C6A9 /* Item.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		942E90321F20F22C00B8C6A9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		942E90351F20F22C00B8C6A9 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		942E90371F20F22C00B8C6A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		942E90611F266F6C00B8C6A9 /* Item.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +66,7 @@
 				942E90271F20F22C00B8C6A9 /* GameScene.sks */,
 				942E90291F20F22C00B8C6A9 /* Actions.sks */,
 				942E902B1F20F22C00B8C6A9 /* GameScene.swift */,
+				942E90611F266F6C00B8C6A9 /* Item.swift */,
 				942E902D1F20F22C00B8C6A9 /* GameViewController.swift */,
 				942E902F1F20F22C00B8C6A9 /* Main.storyboard */,
 				942E90321F20F22C00B8C6A9 /* Assets.xcassets */,
@@ -148,6 +151,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				942E90621F266F6C00B8C6A9 /* Item.swift in Sources */,
 				942E902C1F20F22C00B8C6A9 /* GameScene.swift in Sources */,
 				942E902E1F20F22C00B8C6A9 /* GameViewController.swift in Sources */,
 				942E90261F20F22C00B8C6A9 /* AppDelegate.swift in Sources */,
@@ -316,6 +320,7 @@
 				942E903C1F20F22C00B8C6A9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
