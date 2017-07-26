@@ -75,24 +75,50 @@ class Player: SKSpriteNode {
     }
 }
 
-
+extension SKLabelNode {
+    func multilined() -> SKLabelNode {
+        let substrings: [String] = self.text!.components(separatedBy: "\n")
+        return substrings.enumerated().reduce(SKLabelNode()) {
+            let label = SKLabelNode(fontNamed: self.fontName)
+            label.text = $1.element
+            label.fontColor = self.fontColor
+            label.fontSize = self.fontSize
+            label.position = self.position
+            label.horizontalAlignmentMode = self.horizontalAlignmentMode
+            label.verticalAlignmentMode = self.verticalAlignmentMode
+            let y = CGFloat($1.offset) * self.fontSize
+            label.position = CGPoint(x: 0, y: -y)
+            $0.addChild(label)
+            return $0
+        }
+    }
+}
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
+    //tons of variables
+    
+    //moving and aiming
     let moveCircle = SKSpriteNode(imageNamed: "moveCircle");
     let aimCircle = SKSpriteNode(imageNamed: "aimCircle");
     var touchLocation = CGPoint(x: 0, y: 0)
     var targetEnemy = Enemy(imageNamed: "")
     
+    //inventory
     let inventorySprite = SKSpriteNode(imageNamed: "inventory")
     let closeInv = SKSpriteNode(imageNamed: "closeInv")
     let itemPage = SKSpriteNode(imageNamed: "itemPage")
     let back = SKSpriteNode(imageNamed: "back")
     let use = SKSpriteNode(imageNamed: "use")
+    var titleLabel = SKLabelNode()
+    var textLabel = SKLabelNode()
+    var outputText = SKLabelNode()
     var inventorySize = CGSize(width:1,height:1)
     var inventoryPositions : [CGPoint] = []
     var inventoryPage = false
+    var pageItem = 0
     
+    //objects & lists
     let player = Player(imageNamed: "character")
     var enemies = [Enemy]()
     var Items = [Item]()
@@ -100,16 +126,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var inventoryItems = [Item]()
     var bullets = [SKSpriteNode()]
     
+    //other stuff
     let map = SKSpriteNode()
-    
     var cam : SKCameraNode?
     var canMove = true
     var invOpen = false
     
     var GS = GameState.Playing
     
+    //when the scene first loads...
     override func didMove(to view: SKView) {
-        
+        //make stuff
         player.hp = 10
         player.max = 10
         player.spd = 200
@@ -138,44 +165,39 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsWorld.gravity = CGVector(dx: 0, dy: 0);
         physicsWorld.contactDelegate = self;
         
+        //do the inventory positions and items, which have fixed values
         var i = 0
         while i <= 11{
             inventoryPositions.append(CGPoint(x:0,y:0))
             i += 1;
         }
         
-        /*0*/ Items.append(Item("item", "item", "item"))
-        /*1*/ Items.append(Weapon("gun", "The Gun", "The default gun that you start with", 1, 1))
-        /*2*/ Items.append(Clothing("clothes", "Clothing", "the default clothing that you start with", 1, 1))
-        /*3*/ Items.append(Weapon("gun", "The Machine Gun", "Shoots really fast", 1, 0.25))
+        /*0*/ Items.append(Item("item", "item", "item\n"))
+        /*1*/ Items.append(Weapon("gun", "The Gun", "The default gun that you\nstart with", 1, 1))
+        /*2*/ Items.append(Clothing("clothes", "Clothing", "the default clothing that\nyou start with", 1, 1))
+        /*3*/ Items.append(Weapon("gun", "Machine Gun", "Shoots really fast\n", 1, 0.25))
+        /*4*/ Items.append(Clothing("clothes", "Super Clothing", "powerful clothes\n", 2, 1))
         
-        player.weapon = Items[3] as! Weapon
-        player.clothing = Items[2] as! Clothing
+        player.weapon = Weapon("","","",0,0)
+        player.clothing = Clothing("","","",0,0)
         
         addItem(-100, -100, Items[0])
+        addItem(-200, -100, Items[0])
+        addItem(-300, -100, Items[0])
+        addItem(-400, -100, Items[0])
+        addItem(-500, -100, Items[0])
+        addItem(-600, -100, Items[0])
+        addItem(-700, -100, Items[0])
+        addItem(-800, -100, Items[0])
+        addItem(-900, -100, Items[0])
         addItem(100, 100, Items[1])
         addItem(100, -100, Items[2])
-    }
-    
-    func touchDown(atPoint pos : CGPoint) {
-        
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        
+        addItem(-100, 100, Items[3])
+        addItem(200, 0, Items[4])
     }
     
     func touchUp(atPoint pos : CGPoint) {
         
-    }
-    
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -189,20 +211,25 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             if canMove == true{
             move = true
             }
+            
+            //shoot an enemy
         
             for i in enemies{
-                if touchObject(touchLocation, i, i.hitBox){
-                    if i != targetEnemy {
-                        shootAt(zombie: i)
-                        move = false
-                    } else if i == targetEnemy {
-                        targetEnemy = Enemy(imageNamed: "")
-                        aimCircle.removeFromParent()
-                        removeAction(forKey: "shoot")
-                        move = false
+                if touchObject(touchLocation, i, i.hitBox) {
+                    if player.weapon.damage != 0 {
+                        if i != targetEnemy {
+                            shootAt(zombie: i)
+                        } else if i == targetEnemy {
+                            targetEnemy = Enemy(imageNamed: "")
+                            aimCircle.removeFromParent()
+                            removeAction(forKey: "shoot")
+                        }
                     }
+                    move = false
                 }
             }
+            
+            //open Inventory
         
             if touchObject(touchLocation, player, player.hitBox) {
                 
@@ -221,6 +248,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 
                 canMove = false
                 removeAction(forKey: "moveAction")
+                removeAction(forKey: "hitPlayer")
+                removeAction(forKey: "shoot")
                 
                 GS = GameState.Inventory
                 for i in player.items{
@@ -235,31 +264,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
                 move = false
             }
-        
-            for i in groundItems {
-                if touchObject(touchLocation, i, i.hitBox) && !touchObject(touchLocation, player, player.hitBox){
-                    if let itemIndex = groundItems.index(of: i) {
-                    
-                        groundItems.remove(at: itemIndex)
-                    }
-                    player.items.append(i)
-                    if let itemIndex = player.items.index(of: i) {
-                        if itemIndex >= 12 {
-                            player.items.remove(at: itemIndex)
-                        }
-                    }
-                    i.removeFromParent()
-                    move = false
-                }
-            }
+            
+            //move the player
 
             if action(forKey: "moveAction") == nil && move == true {
 
                 movePlayer(destination: touchLocation)
             }
             
+            // but what if inventory?
         } else if GS == GameState.Inventory {
             
+            //if you close the inv...
             if touchObject(touchLocation, closeInv, Int(closeInv.size.width)/2){
                 GS = GameState.Playing
 
@@ -267,6 +283,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 itemPage.removeFromParent()
                 back.removeFromParent()
                 use.removeFromParent()
+                titleLabel.removeFromParent()
+                outputText.removeFromParent()
                 closeInv.removeFromParent()
                 
                 canMove = true
@@ -278,8 +296,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                         i.removeFromParent()
                     }
                 }
+                for i in enemies {
+                    if i == targetEnemy {
+                        shootAt(zombie: targetEnemy)
+                    }
+                }
             }
             
+            //if you tap an item...
             for i in inventoryItems {
                 
                 if touchObject(touchLocation, i, i.hitBox*3){
@@ -291,29 +315,78 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     itemPage.zPosition = 5
                     addChild(itemPage)
                     
-                    back.position.x = player.position.x - 120
-                    back.position.y = player.position.y - 120
+                    back.position.x = itemPage.position.x - 120
+                    back.position.y = itemPage.position.y - 120
                     back.zPosition = 6
                     addChild(back)
-                    use.position.x = player.position.x + 120
-                    use.position.y = player.position.y - 120
+                    use.position.x = itemPage.position.x + 120
+                    use.position.y = itemPage.position.y - 120
                     use.zPosition = 6
                     addChild(use)
+                    titleLabel.position.x = itemPage.position.x + 120
+                    titleLabel.position.y = itemPage.position.y + 133
+                    titleLabel.zPosition = 6
+                    titleLabel.text = i.title
+                    titleLabel.fontSize = 32
+                    titleLabel.fontName = "Arial"
+                    addChild(titleLabel)
+                    textLabel.text = i.text
+                    textLabel.horizontalAlignmentMode = .left
+                    textLabel.verticalAlignmentMode = .top
+                    textLabel.fontSize = 18
+                    textLabel.fontName = "Arial"
+                    outputText = textLabel.multilined()
+                    outputText.position.x = itemPage.position.x + 15
+                    outputText.position.y = itemPage.position.y + 115
+                    outputText.zPosition = 6
+                    addChild(outputText)
                     
                     i.size.width = 192
                     i.size.height = 192
-                    i.position.x = player.position.x - 120
-                    i.position.y = player.position.y + 60
+                    i.position.x = itemPage.position.x - 120
+                    i.position.y = itemPage.position.y + 60
                     i.zPosition = 6
                     addChild(i)
+                    
+                    pageItem = inventoryItems.index(of: i)!
                 }
             }
             
+            //if you hit back (item page)
             if touchRectObject(touchLocation, back, Int(back.size.width)/2, Int(back.size.height)/2) && inventoryPage == true {
                 
                 itemPage.removeFromParent()
                 back.removeFromParent()
                 use.removeFromParent()
+                titleLabel.removeFromParent()
+                outputText.removeFromParent()
+                inventoryPage = false
+                for i in inventoryItems{
+                    if let itemIndex = inventoryItems.index(of: i){
+                        i.removeFromParent()
+                        i.position = inventoryPositions[itemIndex]
+                        i.zPosition = 4
+                        i.size.width = 96
+                        i.size.height = 96
+                        addChild(player.items[itemIndex])
+                    }
+                }
+            }
+            // if you hit use (item page)
+            if touchRectObject(touchLocation, use, Int(back.size.width)/2, Int(back.size.height)/2) && inventoryPage == true {
+                
+                if inventoryItems[pageItem].isKind(of: Weapon.self) {
+                    player.weapon = inventoryItems[pageItem] as! Weapon
+                }
+                if inventoryItems[pageItem].isKind(of: Clothing.self) {
+                    player.clothing = inventoryItems[pageItem] as! Clothing
+                }
+                
+                itemPage.removeFromParent()
+                back.removeFromParent()
+                use.removeFromParent()
+                titleLabel.removeFromParent()
+                outputText.removeFromParent()
                 inventoryPage = false
                 for i in inventoryItems{
                     if let itemIndex = inventoryItems.index(of: i){
@@ -333,7 +406,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for t in touches { self.touchUp(atPoint: t.location(in: self)) }
     }
     
-    
+    //the update function
     override func update(_ currentTime: TimeInterval) {
         
         if let camera = cam, let pl = player as SKSpriteNode? {
@@ -405,12 +478,30 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     removeAction(forKey: "shoot")
                 }
             }
+            //pick up an item
+            
+            for i in groundItems {
+                if touchObject(player.position, i, i.hitBox) && player.items.count < 12{
+                    if let itemIndex = groundItems.index(of: i) {
+                        
+                        groundItems.remove(at: itemIndex)
+                    }
+                    player.items.append(i)
+                    if let itemIndex = player.items.index(of: i) {
+                        if itemIndex >= 12 {
+                            player.items.remove(at: itemIndex)
+                        }
+                    }
+                    i.removeFromParent()
+                }
+            }
         }
         if GS == GameState.Inventory{
             removeAction(forKey: "moveAction")
         }
     }
     
+    //move the player
     func movePlayer (destination: CGPoint) {
         moveCircle.removeFromParent()
         moveCircle.position = CGPoint(x:destination.x, y:destination.y)
@@ -421,6 +512,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.run(moveAction, withKey : "moveAction")
     }
     
+    //shoot an enemy
     func shootAt (zombie: Enemy) {
         aimCircle.removeFromParent()
         targetEnemy = zombie
@@ -431,10 +523,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     func shootBullet(target: Enemy){
         //shoot a bullet
-        let bullet = SKSpriteNode();
-        bullet.color = UIColor.gray;
-        bullet.size = CGSize(width:5,height:5);
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y);
+        let bullet = SKSpriteNode()
+        bullet.color = UIColor.gray
+        bullet.size = CGSize(width:5,height:5)
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y)
         
         bullets.append(bullet)
         addChild(bullet)
@@ -493,15 +585,25 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         enemies.append(zombie)
     }
     
-    func addItem(_ x:Double,_ y:Double,_ itemType:Item){
-        let item : Item = itemType
-    
-        item.position.x = CGFloat(x)
-        item.position.y = CGFloat(y)
-        item.zPosition = 0
+    func addItem(_ x:Double,_ y:Double,_ item:Item){
         
-        addChild(item)
-        groundItems.append(item)
+        var accessItem = Item(item.textureName,item.title,item.text)
+        
+        if let weapon = item as? Weapon{
+            accessItem = Weapon(weapon.textureName,weapon.title,weapon.text,weapon.damage,weapon.shotSpeed)
+        }
+        if let clothing = item as? Clothing{
+            accessItem = Clothing(clothing.textureName,clothing.title,clothing.text,clothing.protection,clothing.weight)
+        }
+        
+        groundItems.append(accessItem)
+
+        accessItem.position.x = CGFloat(x)
+        accessItem.position.y = CGFloat(y)
+        accessItem.zPosition = 0
+            
+        addChild(accessItem)
+        
     }
     
     func touchObject(_ touchPoint : CGPoint,_ object : SKSpriteNode,_ hitBox : Int) -> Bool {
