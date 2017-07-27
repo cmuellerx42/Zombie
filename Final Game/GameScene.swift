@@ -14,6 +14,7 @@ struct BodyType {
     static let None: UInt32 = 0
     static let Zombie: UInt32 = 1
     static let Bullet: UInt32 = 2
+    static let Solid: UInt32 = 3
     static let Hero: UInt32 = 4
 }
 
@@ -114,7 +115,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var textLabel = SKLabelNode()
     var outputText = SKLabelNode()
     var inventorySize = CGSize(width:1,height:1)
-    var inventoryPositions : [CGPoint] = []
+    var inventoryPositions : [CGPoint] = [CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0),CGPoint(x:0,y:0)]
     var inventoryPage = false
     var pageItem = 0
     
@@ -127,7 +128,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var bullets = [SKSpriteNode()]
     
     //other stuff
-    let map = SKSpriteNode()
+    var map = SKTileMapNode()
+    let grass = SKTileGroup()
+    let brickWall = SKSpriteNode(imageNamed: "brickWall")
     var cam : SKCameraNode?
     var canMove = true
     var invOpen = false
@@ -143,12 +146,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.hitBox = 32
         player.zPosition = 2
         
-        backgroundColor = UIColor.lightGray
-        map.texture = SKTexture(imageNamed: "building")
-        map.size = CGSize(width:640,height:640)
-        map.position = CGPoint(x:0,y:0)
-        map.zPosition = -1
-        addChild(map)
+        let bgTexture = SKTexture(imageNamed: "grass")
+        let bgDefinition = SKTileDefinition(texture: bgTexture, size: bgTexture.size())
+        let bgGroup = SKTileGroup(tileDefinition: bgDefinition)
+        let tileSet = SKTileSet(tileGroups: [bgGroup])
+        let bgNode = SKTileMapNode(tileSet: tileSet, columns: 100, rows: 100, tileSize: bgTexture.size())
+        bgNode.position = CGPoint(x: 0, y: 0)
+        bgNode.setScale(1)
+        bgNode.fill(with: bgGroup)
+        addChild(bgNode)
+        
         addChild(player)
         
         targetEnemy = Enemy(imageNamed: "")
@@ -166,17 +173,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsWorld.contactDelegate = self;
         
         //do the inventory positions and items, which have fixed values
-        var i = 0
-        while i <= 11{
-            inventoryPositions.append(CGPoint(x:0,y:0))
-            i += 1;
-        }
         
         /*0*/ Items.append(Item("item", "item", "item\n"))
         /*1*/ Items.append(Weapon("gun", "The Gun", "The default gun that you\nstart with", 1, 1))
         /*2*/ Items.append(Clothing("clothes", "Clothing", "the default clothing that\nyou start with", 1, 1))
-        /*3*/ Items.append(Weapon("gun", "Machine Gun", "Shoots really fast\n", 1, 0.25))
-        /*4*/ Items.append(Clothing("clothes", "Super Clothing", "powerful clothes\n", 2, 1))
+        /*3*/ Items.append(Weapon("machineGun", "Machine Gun", "Shoots really fast\n", 1, 0.25))
+        /*4*/ Items.append(Clothing("superSuit", "Super Suit", "powerful clothes that\nmake you invincible\n", 2, 1))
         
         player.weapon = Weapon("","","",0,0)
         player.clothing = Clothing("","","",0,0)
@@ -255,11 +257,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 for i in player.items{
                     if let itemIndex = player.items.index(of: i) {
                         inventoryItems.append(i)
-                        player.items[itemIndex].size.width = 96
-                        player.items[itemIndex].size.height = 96
-                        player.items[itemIndex].position = inventoryPositions[itemIndex]
-                        player.items[itemIndex].zPosition = 4
-                        addChild(player.items[itemIndex])
+                        i.size.width = 96
+                        i.size.height = 96
+                        i.position = inventoryPositions[itemIndex]
+                        i.zPosition = 4
+                        addChild(i)
                     }
                 }
                 move = false
@@ -302,100 +304,111 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     }
                 }
             }
-            
+            var tappedItem : Bool = false
+            var tappedButton : Bool = false
             //if you tap an item...
             for i in inventoryItems {
                 
-                if touchObject(touchLocation, i, i.hitBox*3){
+                if inventoryPage == false {
                     
-                    inventoryPage = true
-                    i.removeFromParent()
+                    if touchObject(touchLocation, i, i.hitBox*3) && tappedButton == false {
                     
-                    itemPage.position = player.position
-                    itemPage.zPosition = 5
-                    addChild(itemPage)
+                        for j in inventoryItems {
+                            j.removeFromParent()
+                        }
                     
-                    back.position.x = itemPage.position.x - 120
-                    back.position.y = itemPage.position.y - 120
-                    back.zPosition = 6
-                    addChild(back)
-                    use.position.x = itemPage.position.x + 120
-                    use.position.y = itemPage.position.y - 120
-                    use.zPosition = 6
-                    addChild(use)
-                    titleLabel.position.x = itemPage.position.x + 120
-                    titleLabel.position.y = itemPage.position.y + 133
-                    titleLabel.zPosition = 6
-                    titleLabel.text = i.title
-                    titleLabel.fontSize = 32
-                    titleLabel.fontName = "Arial"
-                    addChild(titleLabel)
-                    textLabel.text = i.text
-                    textLabel.horizontalAlignmentMode = .left
-                    textLabel.verticalAlignmentMode = .top
-                    textLabel.fontSize = 18
-                    textLabel.fontName = "Arial"
-                    outputText = textLabel.multilined()
-                    outputText.position.x = itemPage.position.x + 15
-                    outputText.position.y = itemPage.position.y + 115
-                    outputText.zPosition = 6
-                    addChild(outputText)
+                        itemPage.position = player.position
+                        itemPage.zPosition = 5
+                        addChild(itemPage)
+                        back.position.x = itemPage.position.x - 120
+                        back.position.y = itemPage.position.y - 120
+                        back.zPosition = 6
+                        addChild(back)
+                        use.position.x = itemPage.position.x + 120
+                        use.position.y = itemPage.position.y - 120
+                        use.zPosition = 6
+                        addChild(use)
+                        titleLabel.position.x = itemPage.position.x + 120
+                        titleLabel.position.y = itemPage.position.y + 133
+                        titleLabel.zPosition = 6
+                        titleLabel.text = i.title
+                        titleLabel.fontSize = 32
+                        titleLabel.fontName = "Arial"
+                        addChild(titleLabel)
+                        textLabel.text = i.text
+                        textLabel.horizontalAlignmentMode = .left
+                        textLabel.verticalAlignmentMode = .top
+                        textLabel.fontSize = 18
+                        textLabel.fontName = "Arial"
+                        outputText = textLabel.multilined()
+                        outputText.position.x = itemPage.position.x + 15
+                        outputText.position.y = itemPage.position.y + 115
+                        outputText.zPosition = 6
+                        addChild(outputText)
+                        
+                        i.size.width = 192
+                        i.size.height = 192
+                        i.position.x = itemPage.position.x - 120
+                        i.position.y = itemPage.position.y + 60
+                        i.zPosition = 6
+                        addChild(i)
                     
-                    i.size.width = 192
-                    i.size.height = 192
-                    i.position.x = itemPage.position.x - 120
-                    i.position.y = itemPage.position.y + 60
-                    i.zPosition = 6
-                    addChild(i)
-                    
-                    pageItem = inventoryItems.index(of: i)!
-                }
-            }
-            
-            //if you hit back (item page)
-            if touchRectObject(touchLocation, back, Int(back.size.width)/2, Int(back.size.height)/2) && inventoryPage == true {
-                
-                itemPage.removeFromParent()
-                back.removeFromParent()
-                use.removeFromParent()
-                titleLabel.removeFromParent()
-                outputText.removeFromParent()
-                inventoryPage = false
-                for i in inventoryItems{
-                    if let itemIndex = inventoryItems.index(of: i){
-                        i.removeFromParent()
-                        i.position = inventoryPositions[itemIndex]
-                        i.zPosition = 4
-                        i.size.width = 96
-                        i.size.height = 96
-                        addChild(player.items[itemIndex])
+                        pageItem = inventoryItems.index(of: i)!
+                        inventoryPage = true
+                        
+                        tappedItem = true
                     }
-                }
-            }
-            // if you hit use (item page)
-            if touchRectObject(touchLocation, use, Int(back.size.width)/2, Int(back.size.height)/2) && inventoryPage == true {
-                
-                if inventoryItems[pageItem].isKind(of: Weapon.self) {
-                    player.weapon = inventoryItems[pageItem] as! Weapon
-                }
-                if inventoryItems[pageItem].isKind(of: Clothing.self) {
-                    player.clothing = inventoryItems[pageItem] as! Clothing
-                }
-                
-                itemPage.removeFromParent()
-                back.removeFromParent()
-                use.removeFromParent()
-                titleLabel.removeFromParent()
-                outputText.removeFromParent()
-                inventoryPage = false
-                for i in inventoryItems{
-                    if let itemIndex = inventoryItems.index(of: i){
-                        i.removeFromParent()
-                        i.position = inventoryPositions[itemIndex]
-                        i.zPosition = 4
-                        i.size.width = 96
-                        i.size.height = 96
-                        addChild(player.items[itemIndex])
+                }else if inventoryPage == true {
+                    if touchRectObject(touchLocation, back, Int(back.size.width)/2, Int(back.size.height)/2) && tappedItem == false  {
+                        // go back
+                    
+                        itemPage.removeFromParent()
+                        back.removeFromParent()
+                        use.removeFromParent()
+                        titleLabel.removeFromParent()
+                        outputText.removeFromParent()
+                        inventoryItems[pageItem].removeFromParent()
+                        inventoryPage = false
+                        
+                        updateInvPos()
+                        inventoryItems[pageItem].position = inventoryPositions[pageItem]
+                        inventoryItems[pageItem].zPosition = 4
+                        inventoryItems[pageItem].size.width = 96
+                        inventoryItems[pageItem].size.height = 96
+                        
+                        for j in inventoryItems{
+                            addChild(j)
+                        }
+                        tappedButton = true
+                        
+                    } else if touchRectObject(touchLocation, use, Int(back.size.width)/2, Int(back.size.height)/2) && tappedItem == false {
+                        //use tha item
+                    
+                        if inventoryItems[pageItem].isKind(of: Weapon.self) {
+                            player.weapon = inventoryItems[pageItem] as! Weapon
+                        }
+                        if inventoryItems[pageItem].isKind(of: Clothing.self) {
+                            player.clothing = inventoryItems[pageItem] as! Clothing
+                        }
+                    
+                        itemPage.removeFromParent()
+                        back.removeFromParent()
+                        use.removeFromParent()
+                        titleLabel.removeFromParent()
+                        outputText.removeFromParent()
+                        inventoryItems[pageItem].removeFromParent()
+                        inventoryPage = false
+                    
+                        updateInvPos()
+                        inventoryItems[pageItem].position = inventoryPositions[pageItem]
+                        inventoryItems[pageItem].zPosition = 4
+                        inventoryItems[pageItem].size.width = 96
+                        inventoryItems[pageItem].size.height = 96
+                    
+                        for j in inventoryItems{
+                            addChild(j)
+                        }
+                        tappedButton = true
                     }
                 }
             }
@@ -498,6 +511,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         if GS == GameState.Inventory{
             removeAction(forKey: "moveAction")
+            removeAction(forKey: "hitPlayer")
         }
     }
     
@@ -544,15 +558,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func bulletHitZombie(bullet:SKSpriteNode, zombie: Enemy) {
-        
+        //oof
         explode(object: zombie as SKSpriteNode, explosionSize: 3, explosionRadius: zombie.hitBox, color: UIColor.red)
         zombie.hp -= player.weapon.damage
         print(zombie.hp)
     }
     
     func heroHitZombie(player:Player, zombie: Enemy) {
-        
-        let hitPlayer = SKAction.repeatForever(SKAction.sequence([SKAction.run{self.takeDamage(zombie: zombie)},SKAction.wait(forDuration: 1)]))
+        //zombieHitHero
+        let hitPlayer = SKAction.repeatForever(SKAction.sequence([SKAction.run{
+            if self.GS == GameState.Playing {
+                self.takeDamage(zombie: zombie)
+            }
+            },SKAction.wait(forDuration: 1)]))
         zombie.run(hitPlayer, withKey: "hitPlayer")
     }
     
@@ -581,6 +599,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         zombie.hitBox = 32
         
         addChild(zombie)
+        zombie.hpBar.zPosition = 2
         addChild(zombie.hpBar)
         enemies.append(zombie)
     }
